@@ -17,11 +17,15 @@ use Symfony\Component\HttpFoundation\File\File;
  */
 class LocalFileStorageDriver implements FileStorageDriverInterface
 {
+    private Filesystem $filesystem;
+
     public function __construct(
         private string $storagePath,
         private string $publicUrlPrefix,
         private EntityManagerInterface $entityManager,
-    ) {}
+    ) {
+        $this->filesystem = new Filesystem();
+    }
 
     public function store(File $file, array $metadata = []): Attachment
     {
@@ -42,8 +46,7 @@ class LocalFileStorageDriver implements FileStorageDriverInterface
         );
 
         // Copy new file to storage
-        $filesystem = new Filesystem();
-        $filesystem->copy($filePath, $this->buildFilePath($attachment));
+        $this->filesystem->copy($filePath, $this->buildFilePath($attachment));
 
         $this->entityManager->persist($attachment);
         $this->entityManager->flush();
@@ -53,18 +56,13 @@ class LocalFileStorageDriver implements FileStorageDriverInterface
 
     public function remove(Attachment $attachment): void
     {
-        if (! is_file($filePath = $this->buildFilePath($attachment))) {
-            throw new FileNotFoundException(null,
-                0,
-                null,
-                $filePath
-            );
-        }
+        $file = new File($this->buildFilePath($attachment));
 
         $this->entityManager->remove($attachment);
         $this->entityManager->flush();
 
-        unlink($filePath);
+        // Remove the parent folder in order to avoid leaving it empty.
+        $this->filesystem->remove($file->getPath());
     }
 
     #[Pure]
