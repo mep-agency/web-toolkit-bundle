@@ -11,18 +11,21 @@ use Mep\WebToolkitBundle\Entity\Attachment;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * @author Marco Lipparini <developer@liarco.net>
  */
-class LocalFileStorageDriver implements FileStorageDriverInterface
+final class LocalFileStorageDriver implements FileStorageDriverInterface
 {
     private Filesystem $filesystem;
 
     public function __construct(
         private string $storagePath,
-        private string $publicUrlPrefix,
+        private string $publicUrlPathPrefix,
         private EntityManagerInterface $entityManager,
+        private RequestStack $requestStack,
+        private ?string $publicUrlPrefix = null,
     ) {
         $this->filesystem = new Filesystem();
     }
@@ -68,7 +71,17 @@ class LocalFileStorageDriver implements FileStorageDriverInterface
     #[Pure]
     public function getPublicUrl(Attachment $attachment): string
     {
-        return $this->publicUrlPrefix . '/' . $attachment->getId() . '/' . $attachment->getFileName();
+        return $this->getPublicUrlPrefix() . $this->publicUrlPathPrefix . '/' . $attachment->getId() . '/' . $attachment->getFileName();
+    }
+
+    private function getPublicUrlPrefix(): string
+    {
+        if ($this->publicUrlPrefix === null) {
+            // No public URL prefix was explicitly set, try guessing it from the current request
+            return $this->requestStack->getCurrentRequest()?->getSchemeAndHttpHost() ?? '';
+        }
+
+        return $this->publicUrlPrefix;
     }
 
     #[Pure]
