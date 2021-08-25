@@ -28,6 +28,7 @@ use Mep\WebToolkitBundle\Field\Configurator\TranslatableBooleanConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TranslatableFieldConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TranslatableFieldPreConfigurator;
 use Mep\WebToolkitBundle\FileStorage\FileStorageManager;
+use Mep\WebToolkitBundle\FileStorage\Processor\TinifyProcessor;
 use Mep\WebToolkitBundle\Form\AdminAttachmentUploadApiType;
 use Mep\WebToolkitBundle\Form\AdminAttachmentType;
 use Mep\WebToolkitBundle\Form\TypeGuesser\AdminAttachmentTypeGuesser;
@@ -47,6 +48,7 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_it
 
 /**
  * @author Marco Lipparini <developer@liarco.net>
+ * @author Alessandro Foschi <alessandro.foschi5@gmail.com>
  */
 return static function (ContainerConfigurator $containerConfigurator): void {
     $services = $containerConfigurator->services();
@@ -147,6 +149,12 @@ return static function (ContainerConfigurator $containerConfigurator): void {
         ->arg(1, new Reference(FileStorageManager::class))
         ->tag('twig.extension')
     ;
+
+    // FileStorage processors
+    $services->set(WebToolkitBundle::SERVICE_TINIFY_PROCESSOR, TinifyProcessor::class)
+        ->arg(0, $_ENV['TINIFY_API_KEY'] ?? null)
+        ->arg(1, ! isset($_ENV['TINIFY_API_KEY']) && $_ENV['APP_ENV'] === 'dev')
+        ->tag(WebToolkitBundle::TAG_FILE_STORAGE_PROCESSOR);
 
     // EasyAdminBundle enhancements
     $services->set(WebToolkitBundle::SERVICE_TYPE_GUESSER_CONFIGURATOR, TypeGuesserConfigurator::class)
