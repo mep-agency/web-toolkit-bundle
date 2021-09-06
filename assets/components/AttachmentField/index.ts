@@ -32,12 +32,12 @@ class AttachmentField implements Field {
   public constructor(input: HTMLInputElement)
   {
     this.input = input;
-    this.widget = document.getElementById('mwt-upload-widget') as HTMLElement;
-    this.uploadButton = document.getElementById(`${input.id}__file`) as HTMLInputElement;
-    this.errorButton = document.getElementById(`${input.id}__error_button`) as HTMLElement;
-    this.errorList = document.getElementById(`${input.id}__error_list`) as HTMLElement;
-    this.fileInput = document.getElementById(`${input.id}__file`) as HTMLInputElement;
-    this.deleteButton = document.getElementById(`${input.id}__delete_button`) as HTMLButtonElement;
+    this.widget = document.getElementById(`${input.id}__mwt-upload-widget`) as HTMLElement;
+    this.fileInput = this.widget.querySelector('#file') as HTMLInputElement;
+    this.uploadButton = this.widget.querySelector('#upload_button') as HTMLInputElement;
+    this.deleteButton = this.widget.querySelector('#delete_button') as HTMLButtonElement;
+    this.errorButton = this.widget.querySelector('#error_button') as HTMLElement;
+    this.errorList = this.widget.querySelector('#error_list') as HTMLElement;
     this.apiUrl = this.input.getAttribute('data-api-url')!;
     this.csrfToken = this.input.getAttribute('data-csrf-token')!;
     this.fileData.fileURL = this.input.getAttribute('data-public-url')!;
@@ -45,12 +45,10 @@ class AttachmentField implements Field {
 
   public init()
   {
-    if(this.fileData.fileURL != '') {
+    if(this.fileData.fileURL !== '') {
       this.getFileData(this.fileData);
-    }
-    else
-    {
-      AttachmentField.passFileData();
+    } else {
+      this.passFileData();
     }
 
     this.uploadButton.addEventListener('change', (e) => {
@@ -90,11 +88,11 @@ class AttachmentField implements Field {
 
       this.fileInput.value = "";
 
-      if(this.input.value != "") this.input.value = "";
+      if(this.input.value !== "") this.input.value = "";
 
       this.errorDisplay(false);
 
-      AttachmentField.passFileData();
+      this.passFileData();
     })
   }
 
@@ -125,7 +123,7 @@ class AttachmentField implements Field {
       fileData.fileType=response.headers.get('content-type');
       fileData.fileName=fileData.fileURL.split('/')[5];
 
-      AttachmentField.passFileData(fileData);
+      this.passFileData(fileData);
     }
 
   // === AUX FUNCTIONS
@@ -141,72 +139,61 @@ class AttachmentField implements Field {
       this.widget.classList.add('is-invalid');
       this.errorButton.classList.remove('visually-hidden');
       this.errorList.innerHTML = '';
-    }
-    else
-    {
+    } else {
       this.errorButton.classList.add('visually-hidden');
       this.widget.classList.remove('is-invalid');
     }
   }
 
   // === STATIC FUNCTIONS
-  private static passFileData(fileData?:any) {
-    const container = document.getElementById('previewer') as HTMLAnchorElement;
-    const doc = document.getElementById('document-preview') as HTMLAnchorElement;
-    const image = document.getElementById('image-preview') as HTMLImageElement;
+  private passFileData(fileData?:any) {
+    const container = this.widget.querySelector('.display') as HTMLElement;
     let fileVariables;
 
-    if(!fileData) {
+    if (!fileData) {
       fileVariables = {
         fileSize: 'Empty',
         fileType: 'Empty',
         fileName: 'Empty',
         fileURL: ''
       }
-    }
-    else
-    {
+    } else {
       fileVariables = fileData;
     }
+    this.widget.querySelector('#file-size')!.textContent = fileVariables.fileSize;
+    this.widget.querySelector('#file-type')!.textContent = fileVariables.fileType;
+    this.widget.querySelector('#file-name')!.textContent = fileVariables.fileName;
 
-    document.getElementById('file-size')!.textContent = '\xa0'+fileVariables.fileSize;
-    document.getElementById('file-type')!.textContent = '\xa0'+fileVariables.fileType;
-    document.getElementById('file-name')!.textContent = '\xa0'+fileVariables.fileName;
-
-    if (fileVariables.fileURL == '')
-    {
-      container.classList.add('visually-hidden');
-    }
-    else
-    {
-      container.classList.remove('visually-hidden');
-      container.href = fileVariables.fileURL;
-
-      if(fileVariables.fileType.split('/')[0] == 'image')
-      {
-        image.src = fileVariables.fileURL;
-        this.switchHiddenElement(image, doc);
-      }
-      else
-      {
-        doc.href = fileVariables.fileURL;
-        this.switchHiddenElement(doc, image);
-      }
-    }
+    AttachmentField.createDisplayElement(container, fileVariables.fileType.split('/')[0], fileVariables.fileURL);
   }
 
-  private static switchHiddenElement(firstElement:HTMLElement, secondElement:HTMLElement) {
-      if(firstElement.classList.contains('visually-hidden'))
-      {
-        firstElement.classList.remove('visually-hidden');
-        secondElement.classList.add('visually-hidden');
+  private static createDisplayElement(parent:HTMLElement, type:string, url:string) {
+    parent.innerHTML = '';
+
+    let container = document.createElement('a');
+    container.href = url;
+    container.target = '_blank';
+    let displayElement;
+
+    if (type !== 'Empty') {
+      if (type === 'image') {
+        displayElement = document.createElement('img');
+        displayElement.setAttribute('src', url);
+        container.appendChild(displayElement);
+      } else {
+        displayElement = document.createElement('i');
+        displayElement.classList.add('fas');
+        displayElement.classList.add('fa-file');
+        container.appendChild(displayElement);
       }
-      else
-      {
-        firstElement.classList.add('visually-hidden');
-        secondElement.classList.remove('visually-hidden');
-      }
+      parent.appendChild(container);
+    } else {
+      let emptyElement = document.createElement('i');
+      emptyElement.classList.add('fas');
+      emptyElement.classList.add('fa-ban');
+      parent.appendChild(emptyElement);
     }
+  }
 
   private static fileSizeFormatter(size:string) {
     const bytes = parseFloat(size);
@@ -214,9 +201,7 @@ class AttachmentField implements Field {
 
     if(kiloBytes > 1000) {
       return (Math.round((kiloBytes/1024) * 100) / 100) + ' MB';
-    }
-    else
-    {
+    } else {
       return kiloBytes + ' kB';
     }
   }
