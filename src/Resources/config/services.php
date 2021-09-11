@@ -18,15 +18,16 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\Configurator\BooleanConfigurator;
 use EasyCorp\Bundle\EasyAdminBundle\Provider\AdminContextProvider;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Knp\DoctrineBehaviors\Contract\Provider\LocaleProviderInterface;
+use Mep\WebToolkitBundle\Command\AttachmentsGarbageCollectionCommand;
 use Mep\WebToolkitBundle\Entity\Attachment;
 use Mep\WebToolkitBundle\EventListener\AttachmentLifecycleEventListener;
 use Mep\WebToolkitBundle\EventListener\ForceSingleInstanceEventListener;
+use Mep\WebToolkitBundle\Field\Configurator\AttachmentConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TypeGuesserConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TranslatableBooleanConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TranslatableFieldConfigurator;
 use Mep\WebToolkitBundle\Field\Configurator\TranslatableFieldPreConfigurator;
 use Mep\WebToolkitBundle\FileStorage\FileStorageManager;
-use Mep\WebToolkitBundle\FileStorage\GarbageCollector\EditorJsImageGarbageCollector;
 use Mep\WebToolkitBundle\FileStorage\Processor\TinifyProcessor;
 use Mep\WebToolkitBundle\Form\AdminAttachmentUploadApiType;
 use Mep\WebToolkitBundle\Form\AdminAttachmentType;
@@ -108,18 +109,17 @@ return static function (ContainerConfigurator $containerConfigurator): void {
     ;
 
     // Attachments support
-    $services->set(/*WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER,*/ \Mep\WebToolkitBundle\Command\AttachmentsGarbageCollectionCommand::class)
-        ->arg(0, new Reference(EntityManagerInterface::class))
-        ->arg(1, new Reference(WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER))
-        ->arg(2, tagged_iterator(WebToolkitBundle::TAG_ATTACHMENTS_GARBAGE_COLLECTOR))
-        //->alias(FileStorageManager::class, WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER)
-        ->tag('console.command')
-    ;
     $services->set(WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER, FileStorageManager::class)
         ->arg(0, new Reference(WebToolkitBundle::SERVICE_FILE_STORAGE_DRIVER))
         ->arg(1, new Reference(EntityManagerInterface::class))
         ->arg(2, tagged_iterator(WebToolkitBundle::TAG_FILE_STORAGE_PROCESSOR))
         ->alias(FileStorageManager::class, WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER)
+    ;
+    $services->set(WebToolkitBundle::SERVICE_ATTACHMENTS_GARBAGE_COLLECTION_COMMAND, AttachmentsGarbageCollectionCommand::class)
+        ->arg(0, new Reference(EntityManagerInterface::class))
+        ->arg(1, new Reference(WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER))
+        ->arg(2, tagged_iterator(WebToolkitBundle::TAG_ATTACHMENTS_GARBAGE_COLLECTOR))
+        ->tag('console.command')
     ;
     $services->set(WebToolkitBundle::SERVICE_ATTACHMENTS_ADMIN_API_URL_GENERATOR, AttachmentsAdminApiUrlGenerator::class)
         ->arg(0, new Reference(AdminContextProvider::class))
@@ -153,11 +153,13 @@ return static function (ContainerConfigurator $containerConfigurator): void {
     $services->set(WebToolkitBundle::SERVICE_ADMIN_ATTACHMENT_TYPE, AdminAttachmentType::class)
         ->arg(0, new Reference(EntityManagerInterface::class))
         ->arg(1, new Reference(WebToolkitBundle::SERVICE_ATTACHMENTS_ADMIN_API_URL_GENERATOR))
+        ->arg(2, new Reference(CsrfTokenManagerInterface::class))
         ->tag('form.type')
     ;
     $services->set(WebToolkitBundle::SERVICE_ADMIN_ATTACHMENT_UPLOAD_API_TYPE, AdminAttachmentUploadApiType::class)
         ->arg(0, new Reference(EntityManagerInterface::class))
         ->arg(1, new Reference(WebToolkitBundle::SERVICE_ATTACHMENTS_ADMIN_API_URL_GENERATOR))
+        ->arg(2, new Reference(CsrfTokenManagerInterface::class))
         ->tag('form.type')
     ;
     $services->set(WebToolkitBundle::SERVICE_ADMIN_ATTACHMENT_TYPE_GUESSER, AdminAttachmentTypeGuesser::class)
@@ -168,9 +170,15 @@ return static function (ContainerConfigurator $containerConfigurator): void {
         ->arg(1, new Reference(WebToolkitBundle::SERVICE_FILE_STORAGE_MANAGER))
         ->tag('twig.extension')
     ;
+    $services->set(WebToolkitBundle::SERVICE_ATTACHMENT_CONFIGURATOR, AttachmentConfigurator::class)
+        ->arg(0, new Reference(LocaleProviderInterface::class))
+        ->arg(1, new Reference(PropertyAccessorInterface::class))
+        ->arg(2, new Reference(FormRegistryInterface::class))
+        ->tag(EasyAdminExtension::TAG_FIELD_CONFIGURATOR)
+    ;
 
-    // FileStorage processors
-    $services->set(/*WebToolkitBundle::SERVICE_TINIFY_PROCESSOR,*/ EditorJsImageGarbageCollector::class)
+    // Attachment garbage collectors
+    $services->set(WebToolkitBundle::SERVICE_CONTEXT_GARBAGE_COLLECTOR, \Mep\WebToolkitBundle\FileStorage\GarbageCollector\ContextGarbageCollector::class)
         ->tag(WebToolkitBundle::TAG_ATTACHMENTS_GARBAGE_COLLECTOR);
 
     // FileStorage processors

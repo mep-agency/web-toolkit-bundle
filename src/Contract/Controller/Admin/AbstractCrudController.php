@@ -241,6 +241,59 @@ abstract class AbstractCrudController extends OriginalAbstractCrudController
         throw new RuntimeException('Trying to perform "deleteTranslation" action on a non-translatable entity.');
     }
 
+    public function attachFile(AdminContext $context): JsonResponse
+    {
+        if ($context->getRequest()->getMethod() !== Request::METHOD_POST) {
+            throw new BadRequestException('A request to "' . self::ACTION_ATTACH_FILE . '" must use "' . Request::METHOD_POST . '" HTTP method.');
+        }
+
+        $form = $this->createForm(
+            AdminAttachmentUploadApiType::class,
+            null,
+            // Using EA::ROUTE_PARAMS to have them included in URL signature validation
+            $context->getRequest()->get(EA::ROUTE_PARAMS)
+        );
+        $form->handleRequest($context->getRequest());
+
+        if (! $form->isSubmitted()) {
+            throw new BadRequestException('Expected form data cannot be found.');
+        }
+
+        if (! $form->isValid()) {
+            $errors = [];
+
+            foreach ($form->getErrors(true) as $error) {
+                $errors[] = [
+                    'property' => (string) $error->getOrigin()->getPropertyPath(),
+                    'message' => $error->getMessage(),
+                ];
+            }
+
+            return new JsonResponse(
+                [
+                    'message' => 'Invalid form data',
+                    'errors' => $errors,
+                ],
+                Response::HTTP_BAD_REQUEST,
+            );
+        }
+
+        /** @var AdminAttachmentUploadDto $formData */
+        $formData = $form->getData();
+        /** @var array<string, scalar> $metadata */
+        $metadata = $form->getConfig()->getOption(AdminAttachmentUploadApiType::METADATA);
+        /** @var array<string, scalar> $metadata */
+        $processorsOptions = $form->getConfig()->getOption(AdminAttachmentUploadApiType::PROCESSORS_OPTIONS);
+
+        if (! isset($metadata['context'])) {
+            $metadata['context'] = $form->getConfig()->getOption(AdminAttachmentUploadApiType::CONTEXT);
+        }
+
+        $attachment = $this->fileStorageManager->store($formData->file, $metadata, $processorsOptions);
+
+        return new JsonResponse($this->normalizer->normalize($attachment, 'json'));
+    }
+
     public function createEditFormBuilder(EntityDto $entityDto, KeyValueStore $formOptions, AdminContext $context): FormBuilderInterface
     {
         /** @var TranslatableInterface $instance */
@@ -283,7 +336,7 @@ abstract class AbstractCrudController extends OriginalAbstractCrudController
 
     private function overrideDefaultLocaleIfIsTranslatable(?object $instance): void
     {
-        if ($instance !== null && $instance instanceof TranslatableInterface) {
+        if ($instance instanceof TranslatableInterface) {
             $instance->setDefaultLocale(
                 $this->localeProvider
                     ->provideCurrentLocale()
@@ -307,60 +360,5 @@ abstract class AbstractCrudController extends OriginalAbstractCrudController
         if ($instance instanceof TranslatableInterface) {
             $instance->mergeNewTranslations();
         }
-    }
-
-    public function attachFile(AdminContext $context): JsonResponse
-    {
-        if ($context->getRequest()->getMethod() !== Request::METHOD_POST) {
-            throw new BadRequestException('A request to "' . self::ACTION_ATTACH_FILE . '" must use "' . Request::METHOD_POST . '" HTTP method.');
-        }
-
-        $form = $this->createForm(
-            AdminAttachmentUploadApiType::class,
-            null,
-            // Using EA::ROUTE_PARAMS to have them included in URL signature validation
-            $context->getRequest()->get(EA::ROUTE_PARAMS)
-        );
-        $form->handleRequest($context->getRequest());
-
-        if (! $form->isSubmitted()) {
-            throw new BadRequestException('Expected form data cannot be found.');
-        }
-
-        if (! $form->isValid()) {
-            $errors = [];
-
-            foreach ($form->getErrors(true) as $error) {
-                $errors[] = [
-                    'property' => (string) $error->getOrigin()->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return new JsonResponse(
-                [
-                    'message' => 'Invalid form data',
-                    'errors' => $errors,
-                ],
-                Response::HTTP_BAD_REQUEST,
-            );
-        }
-
-        /** @var AdminAttachmentUploadDto $formData */
-        $formData = $form->getData();
-        $propertyPath = $form->getConfig()->getOption(AdminAttachmentUploadApiType::PROPERTY_PATH);
-        /** @var array<string, scalar> $metadata */
-        $metadata = $form->getConfig()->getOption(AdminAttachmentUploadApiType::METADATA);
-        /** @var array<string, scalar> $metadata */
-        $processorsOptions = $form->getConfig()->getOption(AdminAttachmentUploadApiType::PROCESSORS_OPTIONS);
-        $frontEndContext = $formData->context !== null ? '#' . $formData->context : '';
-
-        if (! isset($metadata['context'])) {
-            $metadata['context'] = static::getEntityFqcn() . '@' . $propertyPath . $frontEndContext;
-        }
-
-        $attachment = $this->fileStorageManager->store($formData->file, $metadata, $processorsOptions);
-
-        return new JsonResponse($this->normalizer->normalize($attachment, 'json'));
     }
 }
