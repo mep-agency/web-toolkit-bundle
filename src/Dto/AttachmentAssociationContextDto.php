@@ -13,36 +13,22 @@ declare(strict_types=1);
 
 namespace Mep\WebToolkitBundle\Dto;
 
+use Stringable;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 /**
- * @internal Do not use this class directly.
+ * @internal do not use this class directly
  *
  * @author Marco Lipparini <developer@liarco.net>
  */
-final class AttachmentAssociationContextDto
+final class AttachmentAssociationContextDto implements Stringable
 {
     public function __construct(
         #[NotBlank]
         public string $fqcn,
-
         #[NotBlank]
         public string $fieldName,
-    ) {}
-
-    public static function fromString(string $context): ?self
-    {
-        $matches = [];
-
-        if (preg_match(
-            '/^([a-zA-Z_\x7f-\xff][a-zA-Z0-9\\_\x7f-\xff]*)::\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)$/',
-            $context,
-            $matches,
-        ) !== 1) {
-           return null;
-        }
-
-        return new self($matches[1], $matches[2]);
+    ) {
     }
 
     public function __toString(): string
@@ -51,6 +37,21 @@ final class AttachmentAssociationContextDto
             return '';
         }
 
-        return $this->fqcn . '::$' . $this->fieldName;
+        return $this->fqcn.'::$'.$this->fieldName;
+    }
+
+    public static function fromString(string $context): ?self
+    {
+        $matches = [];
+
+        if (1 !== preg_match(
+            '#^([a-zA-Z_\x7f-\xff][a-zA-Z0-9\_\x7f-\xff]*)::\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)$#',
+            $context,
+            $matches,
+        )) {
+            return null;
+        }
+
+        return new self($matches[1], $matches[2]);
     }
 }

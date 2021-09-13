@@ -15,8 +15,8 @@ namespace Mep\WebToolkitBundle\Entity\EditorJs\Block;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 use Doctrine\ORM\Mapping as ORM;
+use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 use Mep\WebToolkitBundle\Entity\EditorJs\Block\OutputComponent\NestedListItem;
 use Symfony\Component\Validator\Constraints\Valid;
 
@@ -32,13 +32,18 @@ use Symfony\Component\Validator\Constraints\Valid;
 class NestedList extends Block
 {
     /**
-     * @var Collection<NestedListItem>|NestedListItem[]
+     * @var Collection<int, NestedListItem>
      */
-    #[ORM\ManyToMany(targetEntity: NestedListItem::class, orphanRemoval: true, cascade: ['persist', 'remove'], fetch: 'EAGER')]
+    #[ORM\ManyToMany(targetEntity: NestedListItem::class, orphanRemoval: true, cascade: [
+        'persist',
+        'remove',
+    ], fetch: 'EAGER')]
     #[ORM\JoinTable(name: 'mwt_editor_js_nested_list_nested_list_item')]
     #[ORM\JoinColumn(name: 'nested_list_id', referencedColumnName: 'uuid')]
     #[ORM\InverseJoinColumn(name: 'nested_list_item_id', referencedColumnName: 'uuid', unique: true)]
-    #[ORM\OrderBy(['uuid' => 'ASC'])]
+    #[ORM\OrderBy([
+        'uuid' => 'ASC',
+    ])]
     #[Valid]
     private Collection $items;
 
@@ -47,10 +52,8 @@ class NestedList extends Block
      */
     public function __construct(
         string $id,
-
         #[ORM\Column(type: 'string')]
         private string $style,
-
         array $items,
     ) {
         parent::__construct($id);
@@ -68,29 +71,32 @@ class NestedList extends Block
     }
 
     /**
-     * @return Collection<NestedListItem>|NestedListItem[]
+     * @return Collection<int, NestedListItem>
      */
     public function getItems(): Collection
     {
         return $this->items;
     }
 
-    public function addItem(NestedListItem $item): self
+    public function addItem(NestedListItem $nestedListItem): self
     {
-        if (!$this->items->contains($item)) {
-            $this->items[] = $item;
+        if (! $this->items->contains($nestedListItem)) {
+            $this->items[] = $nestedListItem;
         }
 
         return $this;
     }
 
-    public function removeItem(NestedListItem $item): self
+    public function removeItem(NestedListItem $nestedListItem): self
     {
-        $this->items->removeElement($item);
+        $this->items->removeElement($nestedListItem);
 
         return $this;
     }
 
+    /**
+     * @return array<string, NestedListItem[]|string>
+     */
     protected function getData(): array
     {
         return [

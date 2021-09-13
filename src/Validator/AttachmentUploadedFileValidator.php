@@ -29,22 +29,25 @@ use Symfony\Component\Validator\Constraint;
 final class AttachmentUploadedFileValidator extends AttachmentFileValidator
 {
     /**
-     * @param UploadedFile|string|null $file
-     * @param AttachmentUploadedFile $constraint
+     * @param null|string|UploadedFile $file
+     * @param AttachmentUploadedFile   $constraint
      */
-    public function validate($file, Constraint $constraint)
+    public function validate($file, Constraint $constraint): void
     {
-        if ($file === null || $file === '') {
+        if (null === $file || '' === $file) {
             return;
         }
 
         if (! ($file instanceof UploadedFile)) {
             $this->context->buildViolation('mep_web_toolkit.validators.admin_attachment_upload_type.invalid_value_type')
-                ->addViolation();
+                ->addViolation()
+            ;
+
+            return;
         }
 
-        $unprocessedAttachment = new UnprocessedAttachmentDto($file, null, $constraint->metadata);
+        $unprocessedAttachmentDto = new UnprocessedAttachmentDto($file, null, $constraint->metadata);
 
-        parent::validate($unprocessedAttachment->createAttachment(), $constraint);
+        parent::validate($unprocessedAttachmentDto->createAttachment(), $constraint);
     }
 }

@@ -28,22 +28,22 @@ use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 final class TranslatableFieldPreConfigurator extends AbstractTranslatableFieldConfigurator
 {
     public function __construct(
-        protected LocaleProviderInterface   $localeProvider,
+        protected LocaleProviderInterface $localeProvider,
         protected PropertyAccessorInterface $propertyAccessor,
-        protected FormRegistryInterface     $formRegistry,
-        private EntityFactory               $entityFactory,
-        private TypeGuesserConfigurator     $typeGuessConfigurator,
+        protected FormRegistryInterface $formRegistry,
+        private EntityFactory $entityFactory,
+        private TypeGuesserConfigurator $typeGuesserConfigurator,
     ) {
         parent::__construct($localeProvider, $propertyAccessor, $formRegistry);
     }
 
-    public function configure(FieldDto $field, EntityDto $entityDto, AdminContext $context): void
+    public function configure(FieldDto $fieldDto, EntityDto $entityDto, AdminContext $adminContext): void
     {
-        $this->typeGuessConfigurator->configure(
-            $field,
+        $this->typeGuesserConfigurator->configure(
+            $fieldDto,
             $this->entityFactory
                 ->create($this->getTranslationFqcn($entityDto)),
-            $context,
+            $adminContext,
         );
     }
 }

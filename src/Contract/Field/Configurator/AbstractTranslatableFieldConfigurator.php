@@ -19,6 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldDto;
 use Knp\DoctrineBehaviors\Contract\Entity\TranslatableInterface;
 use Knp\DoctrineBehaviors\Contract\Entity\TranslationInterface;
 use Knp\DoctrineBehaviors\Contract\Provider\LocaleProviderInterface;
+use RuntimeException;
 use Symfony\Component\Form\FormRegistryInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
@@ -32,29 +33,30 @@ abstract class AbstractTranslatableFieldConfigurator implements FieldConfigurato
         protected LocaleProviderInterface $localeProvider,
         protected PropertyAccessorInterface $propertyAccessor,
         protected FormRegistryInterface $formRegistry,
-    ) {}
+    ) {
+    }
 
-    public function supports(FieldDto $field, EntityDto $entityDto): bool
+    public function supports(FieldDto $fieldDto, EntityDto $entityDto): bool
     {
-        if (! in_array(
-            TranslatableInterface::class,
-            class_implements($entityFqcn = $this->getTranslatableFqcn($entityDto)),
-            true
-        )) {
-            return false;
-        }
+        $entityFqcn = $this->getTranslatableFqcn($entityDto);
 
-        return
-            ! property_exists($entityFqcn, $field->getProperty())
-            && property_exists($this->getTranslationFqcn($entityDto), $field->getProperty());
+        return null !== $entityFqcn &&
+            (! property_exists($entityFqcn, $fieldDto->getProperty())
+            && property_exists($this->getTranslationFqcn($entityDto), $fieldDto->getProperty()));
     }
 
     /**
-     * @return class-string<TranslatableInterface>
+     * @return null|class-string<TranslatableInterface>
      */
-    protected function getTranslatableFqcn(EntityDto $entityDto): string
+    protected function getTranslatableFqcn(EntityDto $entityDto): ?string
     {
-        return $entityDto->getFqcn();
+        $entityFqcn = $entityDto->getFqcn();
+
+        if (is_a($entityFqcn, TranslatableInterface::class, true)) {
+            return $entityFqcn;
+        }
+
+        return null;
     }
 
     /**
@@ -62,16 +64,36 @@ abstract class AbstractTranslatableFieldConfigurator implements FieldConfigurato
      */
     protected function getTranslationFqcn(EntityDto $entityDto): string
     {
-        return $this->getTranslatableFqcn($entityDto)::getTranslationEntityClass();
+        $translatableFqcn = $this->getTranslatableFqcn($entityDto);
+
+        if (null === $translatableFqcn) {
+            throw new RuntimeException('This class is not translatable: '.$entityDto->getFqcn());
+        }
+
+        $translationEntityClass = $translatableFqcn::getTranslationEntityClass();
+
+        if (is_a($translationEntityClass, TranslationInterface::class, true)) {
+            return $translationEntityClass;
+        }
+
+        throw new RuntimeException('Invalid translation class: '.$translationEntityClass);
     }
 
-    protected function getFieldPropertyPath(FieldDto $field, EntityDto $entityDto): string
+    protected function getFieldPropertyPath(FieldDto $fieldDto, EntityDto $entityDto): string
     {
-        /** @var TranslatableInterface $instance */
-        $instance = $entityDto->getInstance();
-        $isNew = ! $instance->getTranslations()->containsKey($this->localeProvider->provideCurrentLocale());
         $currentLocale = $this->localeProvider->provideCurrentLocale();
 
-        return ($isNew ? 'newTranslations[' : 'translations[') . $currentLocale . '].' . $field->getProperty();
+        if (null === $currentLocale) {
+            throw new RuntimeException('Cannot get current locale.');
+        }
+
+        /** @var TranslatableInterface $instance */
+        $instance = $entityDto->getInstance();
+        $isNew = ! $instance->getTranslations()
+            ->containsKey($currentLocale)
+        ;
+        $currentLocale = $this->localeProvider->provideCurrentLocale();
+
+        return ($isNew ? 'newTranslations[' : 'translations[').$currentLocale.'].'.$fieldDto->getProperty();
     }
 }

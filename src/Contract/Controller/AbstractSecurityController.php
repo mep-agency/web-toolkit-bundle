@@ -15,6 +15,7 @@ namespace Mep\WebToolkitBundle\Contract\Controller;
 
 use Mep\WebToolkitBundle\Contract\Entity\AbstractUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -34,25 +35,25 @@ abstract class AbstractSecurityController extends AbstractController implements 
     {
         if ($request->isMethod('POST')) {
             $email = $request->request->get('email');
-            $user = $this->findUser($email);
+            $user = $this->findUser((string) $email);
 
             $lastUsername = $email;
 
-            if ($user !== null) {
+            if (null !== $user) {
                 $loginLinkDetails = $loginLinkHandler->createLoginLink($user);
 
                 return $this->sendUrlToUser($user, $loginLinkDetails);
-            } else {
-                $error = new UserNotFoundException();
-                $error->setUserIdentifier($email);
             }
+
+            $userNotFoundException = new UserNotFoundException();
+            $userNotFoundException->setUserIdentifier((string) $email);
         }
 
         return $this->render(
             '@EasyAdmin/page/login.html.twig',
             $this->configureLoginTemplateParameters([
                 'last_username' => $lastUsername ?? null,
-                'error' => $error ?? null,
+                'error' => $userNotFoundException ?? null,
                 'csrf_token_intention' => 'authenticate',
             ]),
         );
@@ -61,22 +62,29 @@ abstract class AbstractSecurityController extends AbstractController implements 
     #[Route('/logout', name: 'logout')]
     public function logout(): void
     {
-        throw new \LogicException('This method can be blank - it will be intercepted by the logout key on your firewall.');
+        throw new \LogicException(
+            'This method can be blank - it will be intercepted by the logout key on your firewall.',
+        );
     }
 
     #[Route('/login-check', name: 'login_check')]
     public function loginCheck(): void
     {
-        throw new \LogicException('This method can be blank - it will be intercepted by the logout key on your firewall.');
+        throw new \LogicException(
+            'This method can be blank - it will be intercepted by the logout key on your firewall.',
+        );
     }
 
-    public function start(Request $request, AuthenticationException $authException = null)
-    {
+    public function start(
+        Request $request,
+        AuthenticationException $authenticationException = null,
+    ): RedirectResponse {
         return $this->redirectToRoute('login');
     }
 
     /**
      * @param array<string, mixed> $parameters
+     *
      * @return array<string, mixed>
      */
     protected function configureLoginTemplateParameters(array $parameters): array

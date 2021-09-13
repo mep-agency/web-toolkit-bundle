@@ -24,24 +24,32 @@ use Symfony\Component\Validator\ConstraintValidator;
 final class EditorJsValidator extends ConstraintValidator
 {
     /**
-     * @param EditorJsContent|string|null $value
-     * @param EditorJS $constraint
+     * @param null|EditorJsContent|string $value
+     * @param EditorJs                    $constraint
      */
-    public function validate($value, Constraint $constraint)
+    public function validate($value, Constraint $constraint): void
     {
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return;
         }
 
         if (! $value instanceof EditorJsContent) {
-            $this->context->buildViolation('Invalid data. EditorJs values must be arrays.')
-                ->addViolation();
+            $this->context->buildViolation('Invalid EditorJs value.')
+                ->addViolation()
+            ;
+
+            return;
         }
 
         foreach ($value->getBlocks() as $block) {
-            if (! in_array($type = get_class($block), $constraint->enabledTools, true)) {
-                $this->context->buildViolation('Block type "' . Block::getTypeByClass($type) . '" is not allowed in this content.')
-                    ->addViolation();
+            $type = $block::class;
+
+            if (! in_array($type, $constraint->enabledTools, true)) {
+                $this->context->buildViolation(
+                    'Block type "'.Block::getTypeByClass($type).'" is not allowed in this content.',
+                )
+                    ->addViolation()
+                ;
             }
         }
     }

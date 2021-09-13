@@ -35,8 +35,8 @@ final class EditorJs extends Constraint
     private static array $optionsResolvers = [];
 
     /**
-     * @param string[] $enabledTools
-     * @param string[] $disabledTools
+     * @param string[]             $enabledTools
+     * @param string[]             $disabledTools
      * @param array<string, mixed> $options
      */
     public function __construct(
@@ -48,7 +48,7 @@ final class EditorJs extends Constraint
 
         if (! empty($this->enabledTools) && ! empty($this->disabledTools)) {
             throw new InvalidConfigurationException(
-                'EditorJs values cannot define both "enabledTools" and "disabledTools", please use one of them.'
+                'EditorJs values cannot define both "enabledTools" and "disabledTools", please use one of them.',
             );
         }
 
@@ -56,29 +56,37 @@ final class EditorJs extends Constraint
         if (empty($this->enabledTools)) {
             $this->enabledTools = Block::getSupportedClasses();
         } else {
-            if (! empty($unknownTools = array_diff($this->enabledTools, Block::getSupportedClasses()))) {
-                throw new InvalidConfigurationException(
-                    'Invalid EditorJs configuration: unknown tool(s): "' . implode('", "', $unknownTools) . '" (enabled).'
-                );
+            $unknownTools = array_diff($this->enabledTools, Block::getSupportedClasses());
+
+            if (! empty($unknownTools)) {
+                throw new InvalidConfigurationException('Invalid EditorJs configuration: unknown tool(s): "'.implode(
+                    '", "',
+                    $unknownTools,
+                ).'" (enabled).');
             }
         }
 
-        if (! empty($unknownTools = array_diff($this->disabledTools, Block::getSupportedClasses()))) {
-            throw new InvalidConfigurationException(
-                'Invalid EditorJs configuration: unknown tool(s): "' . implode('", "', $unknownTools) . '" (disabled).'
-            );
+        $unknownTools = array_diff($this->disabledTools, Block::getSupportedClasses());
+
+        if (! empty($unknownTools)) {
+            throw new InvalidConfigurationException('Invalid EditorJs configuration: unknown tool(s): "'.implode(
+                '", "',
+                $unknownTools,
+            ).'" (disabled).');
         }
 
         // Remove disabled tools (if any)
         foreach ($this->disabledTools as $disabledTool) {
-            if (($key = array_search($disabledTool, $this->enabledTools, true)) !== false) {
+            $key = array_search($disabledTool, $this->enabledTools, true);
+
+            if (false !== $key) {
                 unset($this->enabledTools[$key]);
             }
         }
 
         if (! in_array(Block\Paragraph::class, $this->enabledTools, true)) {
             throw new InvalidConfigurationException(
-                'Invalid EditorJs configuration: the "paragraph" tool is mandatory.'
+                'Invalid EditorJs configuration: the "paragraph" tool is mandatory.',
             );
         }
 
@@ -86,7 +94,7 @@ final class EditorJs extends Constraint
         $this->resolveOptions();
     }
 
-    private function buildOptionResolvers():void
+    private function buildOptionResolvers(): void
     {
         if (! empty(self::$optionsResolvers)) {
             return;
@@ -100,10 +108,6 @@ final class EditorJs extends Constraint
             $optionsResolver = new OptionsResolver();
 
             switch ($tool) {
-                case Block\Paragraph::class:
-                    // No config params...
-
-                    break;
                 case Block\Header::class:
                     // see https://github.com/editor-js/header#config-params
                     $optionsResolver->define('placeholder')
@@ -120,15 +124,6 @@ final class EditorJs extends Constraint
                         ->default(1)
                         ->allowedTypes('int')
                     ;
-                    break;
-                case Block\NestedList::class:
-                    // see https://github.com/editor-js/nested-list#config-params
-                    // No config params...
-
-                    break;
-                case Block\Delimiter::class:
-                    // see https://github.com/editor-js/delimiter#config-params
-                    // No config params...
 
                     break;
                 case Block\Quote::class:
@@ -181,11 +176,6 @@ final class EditorJs extends Constraint
                         ->allowedTypes('array')
                     ;
                     $optionsResolver->setAllowedValues('processorsOptions', $associativeArrayOfScalarValuesValidator);
-
-                    break;
-                case Block\Embed::class:
-                    // see https://github.com/editor-js/embed#available-configuration
-                    // No config params...
 
                     break;
                 case Block\Table::class:
@@ -241,30 +231,31 @@ final class EditorJs extends Constraint
         }
     }
 
-    private function resolveOptions()
+    private function resolveOptions(): void
     {
         $optionsResolver = new OptionsResolver();
 
         foreach ($this->enabledTools as $enabledTool) {
             $optionsResolver->define($enabledTool)
                 ->default([])
-                ->allowedTypes('array');
+                ->allowedTypes('array')
+            ;
         }
 
         try {
             $this->options = $optionsResolver->resolve($this->options);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException $undefinedOptionsException) {
             throw new InvalidConfigurationException(
-                'Invalid EditorJs configuration: ' . $e->getMessage() . ' Did you forget to enable the tool(s)?'
+                'Invalid EditorJs configuration: '.$undefinedOptionsException->getMessage().' Did you forget to enable the tool(s)?',
             );
         }
 
-        foreach($this->options as $toolName => $toolOptions) {
+        foreach ($this->options as $toolName => $toolOptions) {
             try {
-                $this->options[$toolName] = self::$optionsResolvers[$toolName]->resolve($toolOptions);
-            } catch (InvalidOptionsException $e) {
+                $this->options[(string) $toolName] = self::$optionsResolvers[$toolName]->resolve($toolOptions);
+            } catch (InvalidOptionsException $invalidOptionsException) {
                 throw new InvalidConfigurationException(
-                    'Invalid EditorJs tool configuration (' . $toolName . '): ' . $e->getMessage()
+                    'Invalid EditorJs tool configuration ('.$toolName.'): '.$invalidOptionsException->getMessage(),
                 );
             }
         }

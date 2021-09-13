@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 
 /**
- * @internal Do not use this class directly.
+ * @internal do not use this class directly
  *
  * @author Marco Lipparini <developer@liarco.net>
  */
@@ -26,9 +26,14 @@ final class EditorJsContentNormalizer implements DenormalizerInterface
 {
     public function __construct(
         private ObjectNormalizer $objectNormalizer,
-    ) {}
+    ) {
+    }
 
-    public function denormalize($data, string $type, string $format = null, array $context = [])
+    /**
+     * @param array<string, mixed> $context
+     * @param mixed                $data
+     */
+    public function denormalize($data, string $type, string $format = null, array $context = []): object
     {
         $data['time'] = (string) $data['time'];
 
@@ -43,8 +48,8 @@ final class EditorJsContentNormalizer implements DenormalizerInterface
         return $this->objectNormalizer->denormalize($data, $type, $format, $context);
     }
 
-    public function supportsDenormalization($data, string $type, string $format = null)
+    public function supportsDenormalization($data, string $type, string $format = null): bool
     {
-        return is_array($data) && $type === EditorJsContent::class && $format === 'json';
+        return is_array($data) && EditorJsContent::class === $type && 'json' === $format;
     }
 }

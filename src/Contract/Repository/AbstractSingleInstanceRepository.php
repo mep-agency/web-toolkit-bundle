@@ -27,13 +27,13 @@ abstract class AbstractSingleInstanceRepository extends ServiceEntityRepository
     /**
      * @psalm-param class-string<T> $entityClass
      */
-    public function __construct(ManagerRegistry $registry, string $entityClass)
+    public function __construct(ManagerRegistry $managerRegistry, string $entityClass)
     {
-        parent::__construct($registry, $entityClass);
+        parent::__construct($managerRegistry, $entityClass);
     }
 
     /**
-     * @return T|null
+     * @return null|T
      */
     public function getInstance()
     {

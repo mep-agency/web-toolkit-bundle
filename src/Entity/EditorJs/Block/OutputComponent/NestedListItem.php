@@ -22,6 +22,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * @final You should not extend this class.
+ *
  * @internal
  *
  * @author Marco Lipparini <developer@liarco.net>
@@ -35,13 +36,18 @@ class NestedListItem implements JsonSerializable
     private Uuid $uuid;
 
     /**
-     * @var Collection<NestedListItem>|NestedListItem[]
+     * @var Collection<int, NestedListItem>
      */
-    #[ORM\OneToMany(targetEntity: NestedListItem::class, mappedBy: 'parent', orphanRemoval: true, cascade: ['persist', 'remove'], fetch: 'EAGER')]
-    #[ORM\OrderBy(['uuid' => 'ASC'])]
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parent', orphanRemoval: true, cascade: [
+        'persist',
+        'remove',
+    ], fetch: 'EAGER')]
+    #[ORM\OrderBy([
+        'uuid' => 'ASC',
+    ])]
     private Collection $items;
 
-    #[ORM\ManyToOne(targetEntity: NestedListItem::class, inversedBy: 'items')]
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'items')]
     #[ORM\JoinColumn(referencedColumnName: 'uuid', nullable: true)]
     #[Ignore]
     private ?self $parent;
@@ -52,7 +58,6 @@ class NestedListItem implements JsonSerializable
     public function __construct(
         #[ORM\Column(type: 'text')]
         private string $content,
-
         array $items,
     ) {
         $this->uuid = Uuid::v6();
@@ -63,27 +68,27 @@ class NestedListItem implements JsonSerializable
         }
     }
 
-    public function getUuid(): ?Uuid
+    public function getUuid(): Uuid
     {
         return $this->uuid;
     }
 
-    public function getContent(): ?string
+    public function getContent(): string
     {
         return $this->content;
     }
 
     /**
-     * @return Collection<NestedListItem>|NestedListItem[]
+     * @return Collection<int, NestedListItem>
      */
     public function getItems(): Collection
     {
         return $this->items;
     }
 
-    public function addItem(NestedListItem $item): self
+    public function addItem(self $item): self
     {
-        if (!$this->items->contains($item)) {
+        if (! $this->items->contains($item)) {
             $this->items[] = $item;
             $item->setParent($this);
         }
@@ -91,31 +96,35 @@ class NestedListItem implements JsonSerializable
         return $this;
     }
 
-    public function removeItem(NestedListItem $item): self
+    public function removeItem(self $item): self
     {
-        if ($this->items->removeElement($item)) {
-            // set the owning side to null (unless already changed)
-            if ($item->getParent() === $this) {
-                $item->setParent(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->items->removeElement($item) && $item->getParent() === $this) {
+            $item->setParent(null);
         }
 
         return $this;
     }
 
-    public function getParent(): ?NestedListItem
+    public function getParent(): ?self
     {
         return $this->parent;
     }
 
-    public function setParent(?NestedListItem $parent): self
+    /**
+     * @param null|NestedListItem $parent
+     */
+    public function setParent(?self $parent): self
     {
         $this->parent = $parent;
 
         return $this;
     }
 
-    public function jsonSerialize()
+    /**
+     * @return array<string, NestedListItem[]|string>
+     */
+    public function jsonSerialize(): array
     {
         return [
             'content' => $this->content,

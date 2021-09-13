@@ -26,32 +26,33 @@ use RuntimeException;
  */
 final class TranslatableFieldConfigurator extends AbstractTranslatableFieldConfigurator
 {
-    public function configure(FieldDto $field, EntityDto $entityDto, AdminContext $context): void
+    public function configure(FieldDto $fieldDto, EntityDto $entityDto, AdminContext $adminContext): void
     {
-        $field->setFormTypeOption(
-            'property_path',
-            $this->getFieldPropertyPath($field, $entityDto),
-        );
+        $fieldDto->setFormTypeOption('property_path', $this->getFieldPropertyPath($fieldDto, $entityDto),);
 
-        $value = $this->rebuildValueOption($field, $entityDto);
-        $field->setValue($value);
-        $field->setFormattedValue($value);
+        $value = $this->rebuildValueOption($fieldDto, $entityDto);
+        $fieldDto->setValue($value);
+        $fieldDto->setFormattedValue($value);
 
-        $templatePath = $this->rebuildTemplatePathOption($context, $field, $entityDto);
-        $field->setTemplatePath($templatePath);
+        $templatePath = $this->rebuildTemplatePathOption($adminContext, $fieldDto, $entityDto);
+        $fieldDto->setTemplatePath($templatePath);
     }
 
     /**
      * The CommonPreConfigurator fails building values for translatable properties.
      *
      * @see CommonPreConfigurator::buildValueOption()
+     *
+     * @return null|mixed
      */
-    private function rebuildValueOption(FieldDto $field, EntityDto $entityDto)
+    private function rebuildValueOption(FieldDto $fieldDto, EntityDto $entityDto)
     {
-        $entityInstance = $entityDto->getInstance()->translate(null, false);
-        $propertyName = $field->getProperty();
+        $entityInstance = $entityDto->getInstance()
+            ->translate(null, false)
+        ;
+        $propertyName = $fieldDto->getProperty();
 
-        if (!$this->propertyAccessor->isReadable($entityInstance, $propertyName)) {
+        if (! $this->propertyAccessor->isReadable($entityInstance, $propertyName)) {
             return null;
         }
 
@@ -63,25 +64,35 @@ final class TranslatableFieldConfigurator extends AbstractTranslatableFieldConfi
      *
      * @see CommonPreConfigurator::buildTemplatePathOption()
      */
-    private function rebuildTemplatePathOption(AdminContext $adminContext, FieldDto $field, EntityDto $entityDto): string
-    {
+    private function rebuildTemplatePathOption(
+        AdminContext $adminContext,
+        FieldDto $fieldDto,
+        EntityDto $entityDto,
+    ): ?string {
         $labelInaccessibleTemplatePath = $adminContext->getTemplatePath('label/inaccessible');
 
-        if (! in_array(
-            $templatePath = $field->getTemplatePath(),
-            [null, $labelInaccessibleTemplatePath],
-            true
-        )) {
+        $templatePath = $fieldDto->getTemplatePath();
+
+        if (! in_array($templatePath, [null, $labelInaccessibleTemplatePath], true)) {
             return $templatePath;
         }
 
-        $isPropertyReadable = $this->propertyAccessor->isReadable($entityDto->getInstance()->translate(null, false), $field->getProperty());
-        if (!$isPropertyReadable) {
+        $isPropertyReadable = $this->propertyAccessor->isReadable(
+            $entityDto->getInstance()
+                ->translate(null, false),
+            $fieldDto->getProperty(),
+        );
+        if (! $isPropertyReadable) {
             return $labelInaccessibleTemplatePath;
         }
 
-        if (null === $templateName = $field->getTemplateName()) {
-            throw new RuntimeException(sprintf('Fields must define either their templateName or their templatePath. None given for "%s" field.', $field->getProperty()));
+        $templateName = $fieldDto->getTemplateName();
+
+        if (null === $templateName) {
+            throw new RuntimeException(sprintf(
+                'Fields must define either their templateName or their templatePath. None given for "%s" field.',
+                $fieldDto->getProperty(),
+            ));
         }
 
         return $adminContext->getTemplatePath($templateName);

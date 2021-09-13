@@ -52,7 +52,7 @@ class GarbageCollectionCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
+        $symfonyStyle = new SymfonyStyle($input, $output);
         $dryRun = $input->getOption('dry-run');
         $garbageAttachmentsLog = [];
 
@@ -76,14 +76,16 @@ class GarbageCollectionCommand extends Command
             $this->entityManager->flush();
         }
 
-        if (count($garbageAttachmentsLog) > 0) {
-            $io->table(['UUID', 'Public URL', 'Context'], $garbageAttachmentsLog);
+        if ([] !== $garbageAttachmentsLog) {
+            $symfonyStyle->table(['UUID', 'Public URL', 'Context'], $garbageAttachmentsLog);
         } else {
-            $io->info('No unused attachment found.');
+            $symfonyStyle->info('No unused attachment found.');
         }
 
-        if ($deletedAttachments = count($garbageAttachmentsLog)) {
-            $io->success($deletedAttachments . ' unused attachments ' . ($dryRun ? 'found' : 'deleted') . '!');
+        $deletedAttachments = count($garbageAttachmentsLog);
+
+        if ($deletedAttachments > 0) {
+            $symfonyStyle->success($deletedAttachments.' unused attachments '.($dryRun ? 'found' : 'deleted').'!');
         }
 
         return Command::SUCCESS;

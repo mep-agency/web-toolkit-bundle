@@ -34,107 +34,148 @@ use Symfony\Component\Validator\Constraints\Valid;
  */
 final class AdminEditorJsType extends AbstractType implements DataTransformerInterface
 {
-    const TOOLS_OPTIONS = 'tools_options';
+    /**
+     * @var string
+     */
+    public const TOOLS_OPTIONS = 'tools_options';
 
-    const ENABLED_TOOLS = 'enabled_tools';
+    /**
+     * @var string
+     */
+    public const ENABLED_TOOLS = 'enabled_tools';
 
-    const CSRF_TOKEN_ID_IMAGES = self::CSRF_TOKEN_ID . '_images';
+    /**
+     * @var string
+     */
+    public const CSRF_TOKEN_ID_IMAGES = self::CSRF_TOKEN_ID.'_images';
 
-    const CSRF_TOKEN_ID_ATTACHMENTS = self::CSRF_TOKEN_ID . '_attachments';
+    /**
+     * @var string
+     */
+    public const CSRF_TOKEN_ID_ATTACHMENTS = self::CSRF_TOKEN_ID.'_attachments';
 
-    const CSRF_TOKEN_ID = 'mwt_admin_editorjs_upload_api';
+    /**
+     * @var string
+     */
+    public const CSRF_TOKEN_ID = 'mwt_admin_editorjs_upload_api';
 
     public function __construct(
         private AttachmentsAdminApiUrlGenerator $attachmentsAdminApiUrlGenerator,
         private SerializerInterface $serializer,
-        private CsrfTokenManagerInterface $tokenManager,
-    ) {}
+        private CsrfTokenManagerInterface $csrfTokenManager,
+    ) {
+    }
 
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $formBuilder, array $options): void
     {
-        $builder
+        $formBuilder
             ->addModelTransformer($this)
             ->addViewTransformer($this)
         ;
     }
 
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    /**
+     * @param FormInterface<FormInterface> $form
+     */
+    public function buildView(FormView $formView, FormInterface $form, array $options): void
     {
         // Normalize tool options for EditorJs
-        $view->vars['tools_options'] = [];
+        $formView->vars['tools_options'] = [];
 
         foreach ($options[self::ENABLED_TOOLS] as $enabledTool) {
             if (isset($options[self::TOOLS_OPTIONS][$enabledTool])) {
-                if ($enabledTool === Block\Image::class) {
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Image::class)]['captionPlaceholder'] = $options[self::TOOLS_OPTIONS][Block\Image::class]['captionPlaceholder'];
+                if (Block\Image::class === $enabledTool) {
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Image::class,
+                    )]['captionPlaceholder'] = $options[self::TOOLS_OPTIONS][Block\Image::class]['captionPlaceholder'];
 
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Image::class)]['buttonContent'] = $options[self::TOOLS_OPTIONS][Block\Image::class]['buttonContent'];
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Image::class,
+                    )]['buttonContent'] = $options[self::TOOLS_OPTIONS][Block\Image::class]['buttonContent'];
 
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Image::class)]['api_token'] = $this->tokenManager
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Image::class,
+                    )]['api_token'] = $this->csrfTokenManager
                         ->getToken(self::CSRF_TOKEN_ID_IMAGES)
-                        ->getValue();
+                        ->getValue()
+                    ;
 
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Image::class)]['endpoint'] = $this->attachmentsAdminApiUrlGenerator->generate([
-                        'csrf_token_id' => self::CSRF_TOKEN_ID_IMAGES,
-                        AdminAttachmentType::CONTEXT => (string) (new AttachmentAssociationContextDto(Block\Image::class, 'attachment')),
-                        AdminAttachmentType::MAX_SIZE => $options[self::TOOLS_OPTIONS][Block\Image::class]['maxSize'],
-                        AdminAttachmentType::ALLOWED_MIME_TYPES => ['/image\/.+/'],
-                        AdminAttachmentType::ALLOWED_NAME_PATTERN => null,
-                        AdminAttachmentType::METADATA => [],
-                        AdminAttachmentType::PROCESSORS_OPTIONS => $options[self::TOOLS_OPTIONS][Block\Image::class]['processorsOptions'],
-                    ]);
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Image::class,
+                    )]['endpoint'] = $this->attachmentsAdminApiUrlGenerator->generate(
+                        [
+                            'csrf_token_id' => self::CSRF_TOKEN_ID_IMAGES,
+                            AdminAttachmentType::CONTEXT => (string) (new AttachmentAssociationContextDto(
+                                Block\Image::class,
+                                'attachment',
+                            )),
+                            AdminAttachmentType::MAX_SIZE => $options[self::TOOLS_OPTIONS][Block\Image::class]['maxSize'],
+                            AdminAttachmentType::ALLOWED_MIME_TYPES => ['/image\/.+/'],
+                            AdminAttachmentType::ALLOWED_NAME_PATTERN => null,
+                            AdminAttachmentType::METADATA => [],
+                            AdminAttachmentType::PROCESSORS_OPTIONS => $options[self::TOOLS_OPTIONS][Block\Image::class]['processorsOptions'],
+                        ],
+                    );
 
                     continue;
                 }
 
                 // TODO: Implement attaches block (EditorJs)
-                if ($enabledTool === Block\Attaches::class) {
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Attaches::class)]['api_token'] = $this->tokenManager
+                if (Block\Attaches::class === $enabledTool) {
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Attaches::class,
+                    )]['api_token'] = $this->csrfTokenManager
                         ->getToken(self::CSRF_TOKEN_ID_ATTACHMENTS)
-                        ->getValue();
+                        ->getValue()
+                    ;
 
-                    $view->vars['tools_options'][Block::getTypeByClass(Block\Attaches::class)]['endpoint'] = $this->attachmentsAdminApiUrlGenerator->generate([
-                        'csrf_token_id' => self::CSRF_TOKEN_ID_ATTACHMENTS,
-                        AdminAttachmentType::CONTEXT => (string) (new AttachmentAssociationContextDto(Block\Attaches::class, 'attachment')),
-                        AdminAttachmentType::MAX_SIZE => $options[self::TOOLS_OPTIONS][Block\Attaches::class]['maxSize'],
-                        AdminAttachmentType::ALLOWED_MIME_TYPES => [],
-                        AdminAttachmentType::ALLOWED_NAME_PATTERN => null,
-                        AdminAttachmentType::METADATA => [],
-                        AdminAttachmentType::PROCESSORS_OPTIONS => $options[self::TOOLS_OPTIONS][Block\Attaches::class]['processorsOptions'],
-                    ]);
+                    $formView->vars['tools_options'][Block::getTypeByClass(
+                        Block\Attaches::class,
+                    )]['endpoint'] = $this->attachmentsAdminApiUrlGenerator->generate(
+                        [
+                            'csrf_token_id' => self::CSRF_TOKEN_ID_ATTACHMENTS,
+                            AdminAttachmentType::CONTEXT => (string) (new AttachmentAssociationContextDto(
+                                Block\Attaches::class,
+                                'attachment',
+                            )),
+                            AdminAttachmentType::MAX_SIZE => $options[self::TOOLS_OPTIONS][Block\Attaches::class]['maxSize'],
+                            AdminAttachmentType::ALLOWED_MIME_TYPES => [],
+                            AdminAttachmentType::ALLOWED_NAME_PATTERN => null,
+                            AdminAttachmentType::METADATA => [],
+                            AdminAttachmentType::PROCESSORS_OPTIONS => $options[self::TOOLS_OPTIONS][Block\Attaches::class]['processorsOptions'],
+                        ],
+                    );
 
                     continue;
                 }
 
-                $view->vars['tools_options'][Block::getTypeByClass($enabledTool)] = $options[self::TOOLS_OPTIONS][$enabledTool];
+                $formView->vars['tools_options'][Block::getTypeByClass(
+                    $enabledTool,
+                )] = $options[self::TOOLS_OPTIONS][$enabledTool];
 
                 continue;
             }
 
-            $view->vars['tools_options'][Block::getTypeByClass($enabledTool)] = [];
+            $formView->vars['tools_options'][Block::getTypeByClass($enabledTool)] = [];
         }
     }
 
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $optionsResolver): void
     {
-        parent::configureOptions($resolver);
+        parent::configureOptions($optionsResolver);
 
-        $resolver->setDefaults([
+        $optionsResolver->setDefaults([
             'compound' => false,
-            'constraints' => [
-                new Valid(),
-            ],
+            'constraints' => [new Valid()],
             self::TOOLS_OPTIONS => [],
         ]);
 
-        $resolver->setRequired([
-            self::ENABLED_TOOLS,
-        ]);
+        $optionsResolver->setRequired([self::ENABLED_TOOLS]);
 
-        $resolver->setAllowedTypes(self::TOOLS_OPTIONS, 'array');
-        $resolver->setAllowedTypes(self::ENABLED_TOOLS, ['array']);
+        $optionsResolver->setAllowedTypes(self::TOOLS_OPTIONS, 'array');
+        $optionsResolver->setAllowedTypes(self::ENABLED_TOOLS, ['array']);
 
-        $resolver->addNormalizer(
+        $optionsResolver->addNormalizer(
             'constraints',
             function (Options $options, $value): mixed {
                 if ($options->offsetGet('required')) {

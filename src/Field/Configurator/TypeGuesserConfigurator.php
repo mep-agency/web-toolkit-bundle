@@ -18,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldConfiguratorInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldDto;
 use Symfony\Component\Form\FormRegistryInterface;
+use Symfony\Component\Form\FormTypeGuesserInterface;
 
 /**
  * @author Marco Lipparini <developer@liarco.net>
@@ -26,44 +27,61 @@ final class TypeGuesserConfigurator implements FieldConfiguratorInterface
 {
     public function __construct(
         private FormRegistryInterface $formRegistry,
-    ) {}
-
-    public function supports(FieldDto $field, EntityDto $entityDto): bool
-    {
-        return property_exists($entityDto->getFqcn(), $field->getProperty());
+    ) {
     }
 
-    public function configure(FieldDto $field, EntityDto $entityDto, AdminContext $context): void
+    public function supports(FieldDto $fieldDto, EntityDto $entityDto): bool
     {
-        $typeGuesser = $this->formRegistry
-            ->getTypeGuesser();
-        $typeGuess = $typeGuesser->guessType($entityDto->getFqcn(), $field->getProperty());
-        $options = $field->getFormTypeOptions();
+        return property_exists($entityDto->getFqcn(), $fieldDto->getProperty());
+    }
+
+    public function configure(FieldDto $fieldDto, EntityDto $entityDto, AdminContext $adminContext): void
+    {
+        $formTypeGuesser = $this->formRegistry
+            ->getTypeGuesser()
+        ;
+
+        if (! $formTypeGuesser instanceof FormTypeGuesserInterface) {
+            return;
+        }
+
+        $typeGuess = $formTypeGuesser->guessType($entityDto->getFqcn(), $fieldDto->getProperty());
+        $options = $fieldDto->getFormTypeOptions();
 
         // Merge options with guessed options
-        if ($typeGuess !== null && $typeGuess->getType() === $field->getFormType()) {
-            $options = array_merge($typeGuess->getOptions(), $field->getFormTypeOptions());
+        if (null !== $typeGuess && $typeGuess->getType() === $fieldDto->getFormType()) {
+            $options = array_merge($typeGuess->getOptions(), $fieldDto->getFormTypeOptions());
         }
 
         // Set required based on guessed value
-        if ($field->getFormTypeOption('required') === null) {
-            $requiredGuess = $typeGuesser->guessRequired($entityDto->getFqcn(), $field->getProperty());
+        if (null === $fieldDto->getFormTypeOption('required')) {
+            $valueGuess = $formTypeGuesser->guessRequired($entityDto->getFqcn(), $fieldDto->getProperty());
 
-            $options = array_merge(['required' => $requiredGuess?->getValue()], $options);
+            $options = array_merge([
+                'required' => $valueGuess?->getValue(),
+            ], $options);
         }
 
         // Set pattern based on guessed value
-        $patternGuess = $typeGuesser->guessPattern($entityDto->getFqcn(), $field->getProperty());
-        if ($patternGuess !== null) {
-            $options = array_replace_recursive(['attr' => ['pattern' => $patternGuess->getValue()]], $options);
+        $patternGuess = $formTypeGuesser->guessPattern($entityDto->getFqcn(), $fieldDto->getProperty());
+        if (null !== $patternGuess) {
+            $options = array_replace_recursive([
+                'attr' => [
+                    'pattern' => $patternGuess->getValue(),
+                ],
+            ], $options);
         }
 
         // Set maxlength based on guessed value
-        $maxLengthGuess = $typeGuesser->guessMaxLength($entityDto->getFqcn(), $field->getProperty());
-        if ($maxLengthGuess !== null) {
-            $options = array_replace_recursive(['attr' => ['maxlength' => $maxLengthGuess->getValue()]], $options);
+        $maxLengthGuess = $formTypeGuesser->guessMaxLength($entityDto->getFqcn(), $fieldDto->getProperty());
+        if (null !== $maxLengthGuess) {
+            $options = array_replace_recursive([
+                'attr' => [
+                    'maxlength' => $maxLengthGuess->getValue(),
+                ],
+            ], $options);
         }
 
-        $field->setFormTypeOptions($options);
+        $fieldDto->setFormTypeOptions($options);
     }
 }

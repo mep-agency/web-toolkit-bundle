@@ -28,12 +28,13 @@ final class TemplateRenderer
      */
     public function __construct(
         private iterable $templateProviders,
-    ) {}
+    ) {
+    }
 
     /**
      * @param array<string, mixed> $parameters
      */
-    public function render(TemplateIdentifierInterface $templateIdentifier, array $parameters = []): Email
+    public function render(TemplateIdentifierInterface $templateIdentifier, array $parameters = []): ?Email
     {
         foreach ($this->templateProviders as $templateProvider) {
             if ($templateProvider->supports($templateIdentifier)) {

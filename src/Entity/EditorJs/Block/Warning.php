@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Mep\WebToolkitBundle\Entity\EditorJs\Block;
 
-use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 use Doctrine\ORM\Mapping as ORM;
+use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 
 /**
  * @final You should not extend this class.
@@ -29,10 +29,8 @@ class Warning extends Block
 {
     public function __construct(
         string $id,
-
         #[ORM\Column(type: 'string', length: 255)]
         private string $title,
-
         #[ORM\Column(type: 'text')]
         private string $message,
     ) {
@@ -49,6 +47,9 @@ class Warning extends Block
         return $this->message;
     }
 
+    /**
+     * @return array<string, string>
+     */
     protected function getData(): array
     {
         return [

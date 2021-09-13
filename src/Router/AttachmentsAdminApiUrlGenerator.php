@@ -16,6 +16,7 @@ namespace Mep\WebToolkitBundle\Router;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Provider\AdminContextProvider;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use http\Exception\RuntimeException;
 use Mep\WebToolkitBundle\Contract\Controller\Admin\AbstractCrudController;
 
 /**
@@ -26,18 +27,26 @@ final class AttachmentsAdminApiUrlGenerator
     public function __construct(
         private AdminContextProvider $adminContextProvider,
         private AdminUrlGenerator $adminUrlGenerator,
-    ) {}
+    ) {
+    }
 
     /**
      * @param array<string, mixed> $routeParams
      */
     public function generate(array $routeParams, ?string $crudControllerFqcn = null): string
     {
-        if ($crudControllerFqcn === null) {
+        if (null === $crudControllerFqcn) {
             $crudControllerFqcn = $this->adminContextProvider
-                ?->getContext()
+                ->getContext()
                 ?->getCrud()
-                ?->getControllerFqcn();
+                ?->getControllerFqcn()
+            ;
+
+            if (null === $crudControllerFqcn) {
+                throw new RuntimeException(
+                    'Error generating attachments admin API URL: unable to detect CRUD controller FQCN.',
+                );
+            }
         }
 
         return $this->adminUrlGenerator
@@ -45,6 +54,7 @@ final class AttachmentsAdminApiUrlGenerator
             ->setController($crudControllerFqcn)
             ->setAction(AbstractCrudController::ACTION_ATTACH_FILE)
             ->set(EA::ROUTE_PARAMS, $routeParams)
-            ->generateUrl();
+            ->generateUrl()
+        ;
     }
 }

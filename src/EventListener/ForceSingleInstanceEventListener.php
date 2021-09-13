@@ -22,13 +22,15 @@ use Mep\WebToolkitBundle\Exception\Entity\MultipleInstancesOfSingleInstanceEntit
  */
 final class ForceSingleInstanceEventListener
 {
-    public function prePersist(LifecycleEventArgs $args): void
+    public function prePersist(LifecycleEventArgs $lifecycleEventArgs): void
     {
-        $entity = $args->getObject();
+        $object = $lifecycleEventArgs->getObject();
 
-        $repository = $args->getObjectManager()->getRepository(get_class($entity));
+        $repository = $lifecycleEventArgs->getObjectManager()
+            ->getRepository($object::class)
+        ;
 
-        if ($repository instanceof AbstractSingleInstanceRepository && $repository->getInstance() !== null) {
+        if ($repository instanceof AbstractSingleInstanceRepository && null !== $repository->getInstance()) {
             throw new MultipleInstancesOfSingleInstanceEntityException();
         }
     }

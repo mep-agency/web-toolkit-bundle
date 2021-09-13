@@ -1,11 +1,25 @@
 <?php
 
+/*
+ * This file is part of the MEP Web Toolkit package.
+ *
+ * (c) Marco Lipparini <developer@liarco.net>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+declare(strict_types=1);
+
 namespace Mep\WebToolkitBundle\Form\TypeGuesser;
 
 use Mep\WebToolkitBundle\Entity\Attachment;
 use Mep\WebToolkitBundle\Form\AdminAttachmentType;
 use Mep\WebToolkitBundle\Validator\AttachmentFile;
+use ReflectionNamedType;
 use ReflectionProperty;
+use ReflectionType;
+use ReflectionUnionType;
 use Symfony\Component\Form\FormTypeGuesserInterface;
 use Symfony\Component\Form\Guess\Guess;
 use Symfony\Component\Form\Guess\TypeGuess;
@@ -18,35 +32,61 @@ final class AdminAttachmentTypeGuesser implements FormTypeGuesserInterface
     public function guessType(string $class, string $property): ?TypeGuess
     {
         $reflectionProperty = new ReflectionProperty($class, $property);
+        $reflectionType = $reflectionProperty->getType();
 
-        if ($reflectionProperty->getType()?->getName() !== Attachment::class) {
+        if (! $reflectionType instanceof ReflectionType) {
             return null;
         }
 
-        /** @var ?AttachmentFile $validAttachmentAttribute */
+        if ($reflectionType instanceof ReflectionNamedType && Attachment::class !== $reflectionType->getName()) {
+            return null;
+        }
+
+        if ($reflectionType instanceof ReflectionUnionType) {
+            $isValid = false;
+
+            foreach ($reflectionType->getTypes() as $type) {
+                if (Attachment::class === $type->getName()) {
+                    $isValid = true;
+
+                    break;
+                }
+            }
+
+            if (! $isValid) {
+                return null;
+            }
+        }
+
         $validAttachmentAttribute = ($reflectionProperty->getAttributes(AttachmentFile::class)[0] ?? null)
-            ?->newInstance();
+            ?->newInstance()
+        ;
 
         return new TypeGuess(
             AdminAttachmentType::class,
-            $validAttachmentAttribute === null ? [] :
-                [
-                    AdminAttachmentType::MAX_SIZE => $validAttachmentAttribute->maxSize,
-                    AdminAttachmentType::ALLOWED_MIME_TYPES => $validAttachmentAttribute->allowedMimeTypes,
-                    AdminAttachmentType::ALLOWED_NAME_PATTERN => $validAttachmentAttribute->allowedNamePattern,
-                    AdminAttachmentType::METADATA => $validAttachmentAttribute->metadata,
-                    AdminAttachmentType::PROCESSORS_OPTIONS => $validAttachmentAttribute->processorsOptions,
-                ],
-            Guess::VERY_HIGH_CONFIDENCE
+            $validAttachmentAttribute instanceof AttachmentFile ? [
+                AdminAttachmentType::MAX_SIZE => $validAttachmentAttribute->maxSize,
+                AdminAttachmentType::ALLOWED_MIME_TYPES => $validAttachmentAttribute->allowedMimeTypes,
+                AdminAttachmentType::ALLOWED_NAME_PATTERN => $validAttachmentAttribute->allowedNamePattern,
+                AdminAttachmentType::METADATA => $validAttachmentAttribute->metadata,
+                AdminAttachmentType::PROCESSORS_OPTIONS => $validAttachmentAttribute->processorsOptions,
+            ] : [],
+            Guess::VERY_HIGH_CONFIDENCE,
         );
     }
 
     public function guessRequired(string $class, string $property)
-    {}
+    {
+        return null;
+    }
 
     public function guessMaxLength(string $class, string $property)
-    {}
+    {
+        return null;
+    }
 
     public function guessPattern(string $class, string $property)
-    {}
+    {
+        return null;
+    }
 }

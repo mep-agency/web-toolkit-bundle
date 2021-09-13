@@ -38,37 +38,62 @@ use Symfony\Component\Validator\Validation;
  */
 class AdminAttachmentType extends AbstractType implements DataTransformerInterface
 {
+    /**
+     * @var string
+     */
     public const CONTEXT = 'context';
 
+    /**
+     * @var string
+     */
     public const MAX_SIZE = 'max_size';
 
+    /**
+     * @var string
+     */
     public const ALLOWED_MIME_TYPES = 'allowed_mime_types';
 
+    /**
+     * @var string
+     */
     public const ALLOWED_NAME_PATTERN = 'allowed_name_pattern';
 
+    /**
+     * @var string
+     */
     public const METADATA = 'metadata';
 
+    /**
+     * @var string
+     */
     public const PROCESSORS_OPTIONS = 'processors_options';
 
+    /**
+     * @var string
+     */
     protected const CSRF_TOKEN_ID = 'mwt_admin_attachment_upload_api';
 
     public function __construct(
         private EntityManagerInterface $entityManager,
         private AttachmentsAdminApiUrlGenerator $attachmentsAdminApiUrlGenerator,
-        private CsrfTokenManagerInterface $tokenManager,
-    ) {}
+        private CsrfTokenManagerInterface $csrfTokenManager,
+    ) {
+    }
 
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $formBuilder, array $options): void
     {
-        $builder
+        $formBuilder
             ->addModelTransformer($this)
             ->addViewTransformer($this)
         ;
     }
 
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    /**
+     * @param FormInterface<FormInterface> $form
+     */
+    public function buildView(FormView $formView, FormInterface $form, array $options): void
     {
-        $view->vars['api_url'] = $this->attachmentsAdminApiUrlGenerator->generate([
+        $formView->vars['api_url'] = $this->attachmentsAdminApiUrlGenerator->generate([
             'csrf_token_id' => self::CSRF_TOKEN_ID,
             self::CONTEXT => $options[self::CONTEXT],
             self::MAX_SIZE => $options[self::MAX_SIZE],
@@ -78,14 +103,15 @@ class AdminAttachmentType extends AbstractType implements DataTransformerInterfa
             self::PROCESSORS_OPTIONS => Json::encode($options[self::PROCESSORS_OPTIONS]),
         ]);
 
-        $view->vars['api_token'] = $this->tokenManager
+        $formView->vars['api_token'] = $this->csrfTokenManager
             ->getToken(self::CSRF_TOKEN_ID)
-            ->getValue();
+            ->getValue()
+        ;
     }
 
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $optionsResolver): void
     {
-        $resolver->setDefaults([
+        $optionsResolver->setDefaults([
             self::MAX_SIZE => 0,
             self::ALLOWED_MIME_TYPES => [],
             self::ALLOWED_NAME_PATTERN => null,
@@ -93,33 +119,30 @@ class AdminAttachmentType extends AbstractType implements DataTransformerInterfa
             self::PROCESSORS_OPTIONS => [],
         ]);
 
-        $resolver->setRequired([
-            self::CONTEXT,
-        ]);
+        $optionsResolver->setRequired([self::CONTEXT]);
 
-        $resolver->setAllowedTypes(self::CONTEXT, 'string');
-        $resolver->setAllowedTypes(self::MAX_SIZE, ['int', 'string']);
-        $resolver->setAllowedTypes(self::ALLOWED_MIME_TYPES, 'array');
-        $resolver->setAllowedTypes(self::ALLOWED_NAME_PATTERN, ['string', 'null']);
-        $resolver->setAllowedTypes(self::METADATA, 'array');
-        $resolver->setAllowedTypes(self::PROCESSORS_OPTIONS, 'array');
+        $optionsResolver->setAllowedTypes(self::CONTEXT, 'string');
+        $optionsResolver->setAllowedTypes(self::MAX_SIZE, ['int', 'string']);
+        $optionsResolver->setAllowedTypes(self::ALLOWED_MIME_TYPES, 'array');
+        $optionsResolver->setAllowedTypes(self::ALLOWED_NAME_PATTERN, ['string', 'null']);
+        $optionsResolver->setAllowedTypes(self::METADATA, 'array');
+        $optionsResolver->setAllowedTypes(self::PROCESSORS_OPTIONS, 'array');
 
-        $resolver->setNormalizer(self::MAX_SIZE, function (Options $options, $value) {
+        $optionsResolver->setNormalizer(self::MAX_SIZE, function (Options $options, $value) {
             if (is_string($value)) {
-                return intval($value);
+                return (int) $value;
             }
 
             return $value;
         });
 
-        $resolver->setAllowedValues(self::MAX_SIZE, Validation::createIsValidCallable(
-            new PositiveOrZero()
-        ));
+        $optionsResolver->setAllowedValues(self::MAX_SIZE, Validation::createIsValidCallable(new PositiveOrZero()));
+
         $associativeArrayOfScalarValuesValidator = Validation::createIsValidCallable(
             new AssociativeArrayOfScalarValues(),
         );
-        $resolver->setAllowedValues(self::METADATA, $associativeArrayOfScalarValuesValidator);
-        $resolver->setAllowedValues(self::PROCESSORS_OPTIONS, $associativeArrayOfScalarValuesValidator);
+        $optionsResolver->setAllowedValues(self::METADATA, $associativeArrayOfScalarValuesValidator);
+        $optionsResolver->setAllowedValues(self::PROCESSORS_OPTIONS, $associativeArrayOfScalarValuesValidator);
     }
 
     public function getBlockPrefix(): string
@@ -138,29 +161,31 @@ class AdminAttachmentType extends AbstractType implements DataTransformerInterfa
         return $data;
     }
 
-    public function reverseTransform($data) {
-        if ($data === null || $data instanceof Attachment) {
+    public function reverseTransform($data)
+    {
+        if (null === $data || $data instanceof Attachment) {
             return $data;
         }
 
         if (is_string($data)) {
             try {
                 $data = Uuid::fromString($data);
-            } catch (InvalidArgumentException $e) {
-                throw new TransformationFailedException($e->getMessage());
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                throw new TransformationFailedException($invalidArgumentException->getMessage());
             }
         } else {
             throw new TransformationFailedException('Invalid attachment value.');
         }
 
-        $result = $data ? $this->entityManager
+        $attachment = $this->entityManager
             ->getRepository(Attachment::class)
-            ->find($data) : null;
+            ->find($data)
+        ;
 
-        if ($result === null) {
-            throw new TransformationFailedException('Attachment not found: "' . $data . '".');
+        if (! $attachment instanceof Attachment) {
+            throw new TransformationFailedException('Attachment not found: "'.$data.'".');
         }
 
-        return $result;
+        return $attachment;
     }
 }

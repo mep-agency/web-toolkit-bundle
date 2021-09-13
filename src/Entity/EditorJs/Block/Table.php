@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Mep\WebToolkitBundle\Entity\EditorJs\Block;
 
-use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 use Doctrine\ORM\Mapping as ORM;
+use Mep\WebToolkitBundle\Entity\EditorJs\Block;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -28,9 +28,11 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'mwt_editor_js_table')]
 class Table extends Block
 {
+    /**
+     * @param string[][] $content
+     */
     public function __construct(
         string $id,
-
         #[ORM\Column(type: 'boolean')]
         private bool $withHeadings,
 
@@ -54,11 +56,17 @@ class Table extends Block
         return $this->withHeadings;
     }
 
+    /**
+     * @return array<string[]>
+     */
     public function getContent(): array
     {
         return $this->content;
     }
 
+    /**
+     * @return array<string, bool|string[][]>
+     */
     protected function getData(): array
     {
         return [

@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Mep\WebToolkitBundle\Entity\EditorJs;
 
-use JsonSerializable;
 use Doctrine\ORM\Mapping as ORM;
+use JsonSerializable;
 use Symfony\Component\Serializer\Annotation\DiscriminatorMap;
 use Symfony\Component\Serializer\Annotation\Ignore;
 use Symfony\Component\Uid\Uuid;
@@ -35,8 +35,10 @@ use Symfony\Component\Uid\Uuid;
 )]
 abstract class Block implements JsonSerializable
 {
+    /**
+     * @var array<string, class-string<Block>>
+     */
     public const BLOCKS_MAPPING = [
-        // Built-in
         'paragraph' => Block\Paragraph::class,
         'header' => Block\Header::class,
         'list' => Block\NestedList::class,
@@ -51,13 +53,19 @@ abstract class Block implements JsonSerializable
         'raw' => Block\Raw::class,
     ];
 
-    /** @var array<class-string, string> */
+    /**
+     * @var array<class-string, string>
+     */
     private static array $reverseBlocksMapping = [];
 
-    /** @var array<string> */
+    /**
+     * @var array<string>
+     */
     private static array $supportedTypes = [];
 
-    /** @var array<class-string> */
+    /**
+     * @var array<class-string>
+     */
     private static array $supportedClasses = [];
 
     #[ORM\Id]
@@ -68,6 +76,13 @@ abstract class Block implements JsonSerializable
     #[ORM\JoinColumn(nullable: false)]
     #[Ignore]
     private EditorJsContent $parent;
+
+    public function __construct(
+        #[ORM\Column(type: 'string', length: 255)]
+        private string $id,
+    ) {
+        $this->uuid = Uuid::v6();
+    }
 
     /**
      * @param class-string $fqcn
@@ -107,13 +122,6 @@ abstract class Block implements JsonSerializable
         return self::$supportedClasses;
     }
 
-    public function __construct(
-        #[ORM\Column(type: 'string', length: 255)]
-        private string $id,
-    ) {
-        $this->uuid = Uuid::v6();
-    }
-
     public function getUuid(): ?Uuid
     {
         return $this->uuid;
@@ -124,18 +132,21 @@ abstract class Block implements JsonSerializable
         return $this->id;
     }
 
-    public function getParent(): ?EditorJsContent
+    public function getParent(): EditorJsContent
     {
         return $this->parent;
     }
 
-    public function setParent(?EditorJsContent $parent): self
+    public function setParent(EditorJsContent $editorJsContent): self
     {
-        $this->parent = $parent;
+        $this->parent = $editorJsContent;
 
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function jsonSerialize(): array
     {
         return [
@@ -145,5 +156,8 @@ abstract class Block implements JsonSerializable
         ];
     }
 
-    protected abstract function getData(): array;
+    /**
+     * @return array<string, mixed>
+     */
+    abstract protected function getData(): array;
 }
