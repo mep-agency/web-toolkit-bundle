@@ -169,6 +169,11 @@ final class WebToolkitBundle extends Bundle
      */
     public const SERVICE_ADMIN_EDITORJS_TYPE_GUESSER = self::REFERENCE_PREFIX.'admin_editorjs_type_guesser';
 
+    /**
+     * @var string
+     */
+    public const SERVICE_EDITORJS_EXTENSION = self::REFERENCE_PREFIX.'editorjs_extension';
+
     // EasyAdminBundle enhancements
     /**
      * @var string
