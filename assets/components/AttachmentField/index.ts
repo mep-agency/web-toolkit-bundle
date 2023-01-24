@@ -11,8 +11,6 @@ import './attachment-field.scss';
 
 import FieldsManager, { Field } from '../../scripts/FieldsManager';
 
-// TODO: This is a temporary implementation...
-
 class AttachmentField implements Field {
   private readonly input: HTMLInputElement;
 
@@ -111,7 +109,11 @@ class AttachmentField implements Field {
   }
 
   async fetchFileData(fileData:any) {
-    const response = await fetch(fileData.fileURL, {
+    const fileURL = new URL(fileData.fileURL);
+    // Fix broken CORS when asset is already cached...
+    fileURL.searchParams.set('mwt', 'attachment');
+
+    const response = await fetch(fileURL.toString(), {
       method: 'HEAD',
     });
 
